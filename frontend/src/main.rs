@@ -1,7 +1,7 @@
 use std::fmt::format;
 
-use zoon::{named_color::*, *};
 use yew::prelude::*;
+use zoon::{named_color::*, *};
 
 // #[static_ref]
 // fn counter() -> &'static Mutable<u32> {
@@ -32,43 +32,85 @@ use yew::prelude::*;
 //         .label("Arttır")
 //         .on_press(increment)
 // }
+#[derive(Clone,Debug)]
+struct Field {
+    mine: FieldMine,
+    state: Mutable<FieldState>,
+}
+#[derive(Clone,Debug)]
+enum FieldMine {
+    Mine,
+    Empty(u8),
+}
+#[derive(Clone,Debug)]
+enum FieldState {
+    Covered,
+    Uncovered,
+    Flagged,
+}
+impl Default for Field {
+    fn default() -> Self {
+        Self {
+            mine: FieldMine::Empty(0),
+            state: Mutable::new(FieldState::Covered),
+        }
+    }
+}
+
+#[static_ref]
+fn fields() -> &'static MutableVec<MutableVec<Field>> {
+    let mut v_fields = vec![];
+    for _ in 0..8 {
+        let mut fields = vec![];
+        for _ in 0..8 {
+            fields.push(Field::default())
+        }
+        v_fields.push(MutableVec::new_with_values(fields))
+    }
+    MutableVec::new_with_values(v_fields)
+}
 
 fn root() -> impl Element {
-    Column::new().s(Align::center())
-    .s(Gap::new().y(2))
-    .items( (0..8).map(|y| grid(y)))
-    .item(reset_button())
+    Column::new()
+        .s(Align::center())
+        .s(Gap::new().y(2))
+        .items_signal_vec(
+            fields()
+            .signal_vec_cloned()
+            .map(|fields| grid(fields)),
+        )
+        .item(reset_button())
 }
 
 fn reset_button() -> impl Element {
-    let(hovered , hovered_signal) = Mutable::new_and_signal(false);
+    let (hovered, hovered_signal) = Mutable::new_and_signal(false);
     Button::new()
-    .s(Padding::all(5))
-    //.s(Background::new().color(RED_6))
-    .s(Background::new().color_signal(hovered_signal.map_bool(|| RED_1, || RED_9)))
-    .on_hovered_change(move |is_hovered| hovered.set_neq(is_hovered))
-    .label("Reset")
+        .s(Padding::all(5))
+        //.s(Background::new().color(RED_6))
+        .s(Background::new().color_signal(hovered_signal.map_bool(|| RED_1, || RED_9)))
+        .on_hovered_change(move |is_hovered| hovered.set_neq(is_hovered))
+        .label("Reset")
 }
-fn grid(y:usize)-> impl Element{
+fn grid(fields:MutableVec<Field>) -> impl Element {
     Row::new()
-    .s(Gap::new().x(2))
-    .items((0..8).map(|x| field(x,y)))
-
+        .s(Gap::new().x(2))
+        .items_signal_vec(
+            fields.signal_vec_cloned()
+            .map(|field|
+                                mine(field))
+        )
 }
-fn field(x: usize, y:usize)-> impl Element{
-    let(hovered , hovered_signal) = Mutable::new_and_signal(false);
+fn mine(field:Field) -> impl Element {
+    
+    let (hovered, hovered_signal) = Mutable::new_and_signal(false);
+    let state =  field.state.clone();
     Button::new()
-    .s(Background::new().color_signal(hovered_signal.map_bool(|| GRAY_3, || GRAY_6)))
-    .on_hovered_change(move |is_hovered| hovered.set_neq(is_hovered))
-    .s(RoundedCorners::all(3))
-    .s(Width::exact(50))
-    .s(Height::exact(50))
-    .label(
-        Label::new()
-        .s(Align::center())
-        .label(format!("{x} , {y}"))
-    )
-
+        .s(Background::new().color_signal(hovered_signal.map_bool(|| GRAY_3, || GRAY_6)))
+        .on_hovered_change(move |is_hovered| hovered.set_neq(is_hovered))
+        .s(RoundedCorners::all(3))
+        .s(Width::exact(50))
+        .s(Height::exact(50))
+        .label(Label::new().s(Align::center()).label(format!("{state:?}")))
 }
 
 fn main() {
